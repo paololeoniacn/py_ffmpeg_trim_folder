@@ -1,0 +1,30 @@
+# Bytecode compilati
+__pycache__/
+*.py[cod]
+
+# Ambienti virtuali
+venv/
+.env/
+
+# File di configurazione e log
+*.log
+*.sqlite3
+.DS_Store
+
+# Impostazioni di VSCode
+.vscode/
+
+# Dipendenze installate
+temp/
+nodist/
+Pipfile.lock
+poetry.lock
+
+# File di output
+output.mp4
+output.wav
+final_video.mp4
+
+# File di sistema Windows
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,6 @@
+numpy
+opencv-python
+mss
+sounddevice
+ffmpeg-python
+keyboard
