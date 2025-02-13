@@ -4,3 +4,5 @@ mss
 sounddevice
 ffmpeg-python
 keyboard
+pywin32
+screeninfo
