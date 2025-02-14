@@ -134,7 +134,7 @@ def record_application(window_title, window_rect, system_audio_device, mic_audio
 
     print("\nEsecuzione del comando:")
     print(" ".join(command))
-    print("\nLa registrazione è in corso... premi INVIO per terminare.\n")
+    print("\n🎥 La registrazione è in corso... premi INVIO per terminare.\n")
 
     try:
         proc = subprocess.Popen(command, stdin=subprocess.PIPE)
@@ -179,7 +179,9 @@ if __name__ == "__main__":
     # Creazione della cartella di output con timestamp
     start_time = datetime.now()
     timestamp_folder = start_time.strftime("%Y%m%d_%H%M%S")
-    output_folder = f"recordings/{timestamp_folder}"
+    # output_folder = f"recordings/{timestamp_folder}" #LOCAL
+    CAPTURE_FOLDER = "C:\\Users\\paolo.leoni\\Videos\\Captures\\"
+    output_folder = os.path.join(str(CAPTURE_FOLDER),"myFFMPEG")
     os.makedirs(output_folder, exist_ok=True)
 
     # Imposta il nome di default del file: se si registra una finestra, usa il titolo (sanitizzato);
@@ -192,9 +194,8 @@ if __name__ == "__main__":
         output_file = f"{output_folder}/{output_file_input}"
 
     proc = record_application(window_title, window_rect, system_audio_device, mic_audio_device, output_file)
-    input("Premi INVIO per fermare la registrazione...")
+    input("Premi INVIO per fermare la registrazione...\n")
     try:
-        print("🎥 Avvio registrazione video...")
         proc.communicate(input=b"q\n")
     except Exception as e:
         print("Si è verificato un errore durante la terminazione della registrazione:", e)
