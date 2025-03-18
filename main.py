@@ -5,6 +5,8 @@ from datetime import datetime
 import win32gui
 import re
 from screeninfo import get_monitors
+import msvcrt
+import subprocess
 
 def sanitize_filename(filename):
     """
@@ -86,6 +88,10 @@ def choose_monitor():
 
 def record_application(window_title, window_rect, system_audio_device, mic_audio_device, output_file):
     command = ["ffmpeg", "-y"]
+    
+    # Validate the system audio device if provided
+    if system_audio_device:
+        validate_dshow_device(system_audio_device)
 
     # Se sono disponibili le coordinate (window_rect), le usiamo per ritagliare la porzione di desktop
     if window_rect:
@@ -125,16 +131,21 @@ def record_application(window_title, window_rect, system_audio_device, mic_audio
     
     # Parametri per una codifica compatibile: H.264 per il video e AAC per l'audio.
     command.extend([
-        "-c:v", "libx264",
+        "-c:v", "h264_qsv",
         "-preset", "fast",
         "-pix_fmt", "yuv420p",
+        "-r", "30",
+        "-vsync", "1",
         "-c:a", "aac",
+        "-fflags", "+genpts",
+        "-avoid_negative_ts", "make_zero",
         output_file
     ])
 
+
     print("\nEsecuzione del comando:")
     print(" ".join(command))
-    print("\n🎥 La registrazione è in corso... premi INVIO per terminare.\n")
+    print("\n🎥 La registrazione è in corso... premi 'q' per terminare.\n")
 
     try:
         proc = subprocess.Popen(command, stdin=subprocess.PIPE)
@@ -143,7 +154,37 @@ def record_application(window_title, window_rect, system_audio_device, mic_audio
         print("Errore: ffmpeg non è stato trovato. Assicurati che sia installato e presente nel PATH.")
         sys.exit(1)
 
+def validate_dshow_device(device_name: str) -> None:
+    """
+    Verifies that ffmpeg’s DirectShow list_devices output contains device_name.
+    If not found, prints a user‑friendly English error and exits.
+    """
+    try:
+        output = subprocess.check_output(
+            ["ffmpeg", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+        
+    except FileNotFoundError:
+        print("Error: ffmpeg executable not found. Make sure ffmpeg is installed and on your PATH.")
+        sys.exit(1)
+
+    if device_name not in output:
+        print(f"\nERROR: The audio device “{device_name}” was not found by ffmpeg.\n")
+        print(f"\n ----- ACTUAL LIST ----- \n")
+        print(output)
+        print(f"\n ----- ACTUAL LIST ----- \n")
+        print("Possible fixes:")
+        print(" • Make sure “Stereo Mix” is enabled in Windows ► Control Panel → Sound → Recording → Right‑click → Show Disabled Devices → Enable Stereo Mix.")
+        print(" • If you don’t see Stereo Mix, install a virtual audio capture driver (e.g. VB‑Audio Virtual Cable) and restart your PC.")
+        print(" • Alternatively you can switch to WASAPI loopback capture (use “-f wasapi -i \"Speakers (Your Output Device):loopback\"” instead).")
+        input("Press ENTER to exit...")
+        sys.exit(1)
+
 if __name__ == "__main__":
+    output_file_input = input(f"Inserisci il nome del file di output (es. Test.mp4): ").strip()
+    
     # Chiedi all'utente se registrare una finestra o uno schermo.
     mode = input("Vuoi registrare (1) una finestra o (2) uno schermo? [default: 2]: ").strip()
     if mode == "" or mode == "2":
@@ -163,7 +204,8 @@ if __name__ == "__main__":
     # Audio di sistema: default S (Si)
     audio_sys_input = input("Vuoi registrare l'audio di sistema? (S/n) [default: S]: ").strip().lower()
     if audio_sys_input == "" or audio_sys_input == "s":
-        system_audio_device = "Stereo Mix (Realtek(R) Audio)"
+        # system_audio_device = "Stereo Mix (Realtek(R) Audio)"
+        system_audio_device = "Stereo Mix (2- Realtek(R) Audio)"
     else:
         system_audio_device = None
 
@@ -186,18 +228,31 @@ if __name__ == "__main__":
 
     # Imposta il nome di default del file: se si registra una finestra, usa il titolo (sanitizzato);
     # altrimenti usa l'orario di inizio.
-    default_file_base = sanitize_filename(window_title) if window_title else start_time.strftime("%H_%M_%S")
-    output_file_input = input(f"Inserisci il nome del file di output (es. {default_file_base}.mp4) [default: {default_file_base}.mp4]: ").strip()
+    appendix = start_time.strftime("%H_%M_%S")
+    default_file_base_tmp = sanitize_filename(window_title) if window_title else "default"
+    default_file_base = F"{default_file_base_tmp}_{appendix}"
+    
     if output_file_input == "":
         output_file = f"{output_folder}/{default_file_base}.mp4"
     else:
-        output_file = f"{output_folder}/{output_file_input}"
+        output_file = f"{output_folder}/{output_file_input}_{appendix}.mp4"
 
     proc = record_application(window_title, window_rect, system_audio_device, mic_audio_device, output_file)
-    input("Premi INVIO per fermare la registrazione...\n")
+
+    print("Premi 'q' per fermare la registrazione...")
+    while True:
+        if msvcrt.kbhit() and msvcrt.getch().lower() == b'q':
+            break
     try:
         proc.communicate(input=b"q\n")
     except Exception as e:
         print("Si è verificato un errore durante la terminazione della registrazione:", e)
+
+    # input("Premi INVIO per fermare la registrazione...\n")
+    # try:
+    #     proc.communicate(input=b"q\n")
+    # except Exception as e:
+    #     print("Si è verificato un errore durante la terminazione della registrazione:", e)
+
     print(f"✅ Video salvato in {output_file}({os.path.getsize(output_file)/1024/1024:.2f} MB)")
  
